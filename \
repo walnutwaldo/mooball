@@ -1,0 +1,135 @@
+#include <bits/stdc++.h>
+#include "walbot.h"
+
+#define MO MovingObject
+
+#define F first
+#define S second
+
+using namespace std;
+
+typedef pair<int, int> pii;
+
+const int speed = 10;
+const int balls_considered = 100;
+const double pntdiv = 20;
+const double reversepnts = -0.01;
+const int smash_dis = 5;
+
+void walbot::init(int Nrows, int Ncols, int Npaddles_per_player, int paddle_size, bool am_i_left)
+{
+	r = Nrows;
+	c = Ncols;
+	ppp = Npaddles_per_player;
+	ps = paddle_size;
+	amleft = am_i_left;
+	bot_name = "WALBOT";
+}
+
+bool walbot::paddleHits(int paddlePos, int ballPos) { return ballPos >= paddlePos + 2 && ballPos < paddlePos + ps - 2; }
+
+bool walbot::should_smash(MO me, vector<MO> balls) {
+	int closest = 100;
+	int strip_width = c / (4 * ppp - 1);
+	int dis_bw_paddles = 4 * strip_width;
+	int loc = me.col;
+	if(!amleft) loc = c - strip_width + loc;
+
+	for(const MO o : balls) for (int i = 0; i < ppp; i++) {
+		closest = min(closest, abs(loc + (amleft?1:-1) * i * dis_bw_paddles - o.col));
+	}
+	return false;
+	// return closest < smash_dis;
+}
+
+pair<int,int> walbot::move(MO me, MO opponent, vector<MO> balls, int timer_offset)
+{
+	int strip_width = c / (4 * ppp - 1);
+	int dis_bw_paddles = 4 * strip_width;
+
+	int loc = me.col;
+	if(!amleft) loc = c - strip_width + loc;
+	vector<pair<double, pair<int, double>>> v;
+	
+	for (int i = 0; i < balls.size(); i++) {
+		if (balls[i].col < 0 || balls[i].col >= c) continue;	
+		if(amleft ^ (balls[i].col > loc)) continue;
+		if(balls[i].col_vel == 0) continue;
+		if(amleft ^ (balls[i].col_vel < 0)) { // moving away
+			int nearLoc = loc + ((amleft)?1 : -1) * dis_bw_paddles;
+			double pnts = reversepnts;
+			pnts = 0;
+			if (amleft) {
+				while(nearLoc - dis_bw_paddles > balls[i].col) nearLoc -= dis_bw_paddles;
+			} else {
+				while(nearLoc + dis_bw_paddles < balls[i].col) nearLoc += dis_bw_paddles;
+			}
+			double t = (double)abs(balls[i].col - nearLoc) / abs(balls[i].col_vel);
+			int targetRow = (int)(balls[i].row + t * balls[i].row_vel);
+			targetRow = ((targetRow % (2 * r)) + 2 * r) % (2 * r);
+			if(targetRow >= r) 
+				targetRow = 2 * r - targetRow;
+			v.push_back(make_pair(t, make_pair(targetRow, pnts)));
+		} else {
+			int nearLoc = loc;
+			double pnts = 1;
+			if(amleft) {
+				while(nearLoc + dis_bw_paddles < balls[i].col) {
+					nearLoc += dis_bw_paddles;
+					pnts /= pntdiv;
+					pnts = 0;
+				}
+			} else {
+				while(nearLoc - dis_bw_paddles > balls[i].col) {
+					nearLoc -= dis_bw_paddles;
+					pnts /= pntdiv;
+					pnts = 0;
+				}
+			}
+			double t = (double)abs(balls[i].col - nearLoc) / abs(balls[i].col_vel);
+			int targetRow = (int)(balls[i].row + t * balls[i].row_vel);
+			targetRow = ((targetRow % (2 * r)) + 2 * r) % (2 * r);
+			if(targetRow >= r) 
+				targetRow = 2 * r - targetRow;
+			v.push_back(make_pair(t, make_pair(targetRow, pnts)));
+		}
+	}
+	sort(v.begin(), v.end()); // time, targetrow, pnts
+	int bc = min(balls_considered, (int)v.size());
+	pair<double, int> dp[bc + 1][r - ps + 1];
+	for (int i = 0; i < bc + 1; i++) for (int j = 0; j < r - ps + 1; j++) dp[i][j] = make_pair(-1e6, 0);
+	dp[0][me.row] = make_pair(0.0, -1);
+	for (int i = 0; i < bc; i++) {
+		bool didsomething = false;
+		for (int paddlePos = 0; paddlePos < r - ps + 1; paddlePos++) {
+			for (int k = 0; k < r - ps + 1; k++)
+				int lastPaddlePos = ((r - ps + 1) / 2 + k) % (r - ps + 1);
+				if(lastPaddlePos == paddlePos || max(0.0, v[i].F - ((i == 0)?0:v[i - 1].F)) * 100 >= abs(paddlePos - lastPaddlePos)) {
+					pair<double, int> np = make_pair(dp[i][lastPaddlePos].F + v[i].S.S * (int)(paddleHits(paddlePos, v[i].S.F)), lastPaddlePos);
+					if(dp[i + 1][paddlePos].F < np.F) dp[i + 1][paddlePos] = np;
+					didsomething = true;
+				}
+		}
+	}
+	int targetRow = r / 2 - ps / 2;
+	if(!v.empty()) {
+		int curr = bc;
+		pair<double, int> res = dp[curr][0];
+		for (int i = 0; i < r - ps + 1; i++) if(dp[curr][i].F > res.F) {
+			res = dp[curr][i];
+			if(res.F > 0) targetRow = i;
+		}
+		cout << res.F << " ";
+		while(curr > 1) {
+			if(dp[curr - 1][res.S].F > 0) targetRow = res.S;
+			res = dp[--curr][res.S];
+		}
+		cout << targetRow << endl;
+	}
+	bool smash = should_smash(me, balls);
+	int c_vel = 0;
+	if(smash) c_vel = (amleft?1:-1) * 100;
+	else c_vel = (amleft?-1:1) * 100;
+	int r_vel = max(-100, min(100, (int)((double)(targetRow - me.row) / (0.0001 * timer_offset))));
+	return make_pair(r_vel, c_vel);
+}
