@@ -1,65 +1,58 @@
 #include <bits/stdc++.h>
-#include "walbot.h"
+#include "walbot2.h"
 
 #define MO MovingObject
 #define MP make_pair
 
 #define F first
 #define S second
-#define PB push_back
 
 using namespace std;
 
 typedef pair<int, int> pii;
 
+const int speed = 10;
 const int balls_considered = 100;
+const double pntdiv = 1;
 const double reversepnts = -0.001;
 const int criticalInPlay = 30;
 
-void walbot::init(int Nrows, int Ncols, int Npaddles_per_player, int paddle_size, bool am_i_left)
+void walbot2::init(int Nrows, int Ncols, int Npaddles_per_player, int paddle_size, bool am_i_left)
 {
 	r = Nrows;
 	c = Ncols;
 	ppp = Npaddles_per_player;
 	ps = paddle_size;
 	amleft = am_i_left;
-	bot_name = "WALBOT";
+	bot_name = "WALBOT2";
 	strip_width = c / (4 * ppp - 1);
 	dis_bw_paddles = 4 * strip_width;
 }
 
-double walbot::paddleHits(int paddlePos, int ballPos) {
+double walbot2::paddleHits(int paddlePos, int ballPos) {
 	double base = 0;
-	if(ballPos >= paddlePos && ballPos < paddlePos + ps) base = 1;
+	if(ballPos >= paddlePos + 1 && ballPos < paddlePos + ps - 1) base = 1;
 	if(ballPos >= paddlePos + ps * 2 / 5 && ballPos < paddlePos + ps * 3 / 5) base *= 1.01;
 	return base;
 }
 
-bool walbot::about_to_hit(MO me, vector<MO> balls, int timer_offset) {
-	for(const MO o : balls) for(int i = 0; i < ppp; i++) {
-		if(o.col_vel < 0 && abs(o.col - (me.col + i * dis_bw_paddles)) < (-o.col_vel) * timer_offset / 1000 && paddleHits(me.row, o.row)) return true;
-	}
-	return false;
-}
-
-bool walbot::should_smash(MO me, vector<MO> balls, int timer_offset) {
+bool walbot2::should_smash(MO me, vector<MO> balls, int timer_offset) {
+	int closest = 100;
 	int inPlay = 0;
 	int cnt1 = 0, cnt2 = 0;
 	for(const MO o : balls) {
 		if(o.col >= 0 && o.col < c) inPlay++;
 		if((o.col > me.col + (ppp - 1) * dis_bw_paddles && o.col_vel < 0) && paddleHits(me.row, o.row)) 
-			if(o.col - me.col - (ppp - 1) * dis_bw_paddles <= (100 - o.col_vel) * timer_offset / 1000)
+			if(o.col - me.col - (ppp - 1) * dis_bw_paddles < (100 - o.col_vel) * timer_offset / 1000)
 				cnt1++;
 		if((o.col > me.col && o.col_vel < 0) && paddleHits(me.row, o.row))
-			if(o.col - me.col <= (100 - o.col_vel) * timer_offset / 1000)
+			if(o.col - me.col < (100 - o.col_vel) * timer_offset / 1000)
 				cnt2++;
 	}
-	return (inPlay >= criticalInPlay && cnt1 > 0) || (cnt1 > 1.25 * cnt2);
+	return (inPlay >= criticalInPlay && cnt1) || (cnt1 > 1.25 * cnt2);
 }
 
-vector<pair<double, pair<int, double>>> walbot::getHitLocs(MO me, vector<MO> balls, int timer_offset) {
-	int enemypnts = 0;
-	for(const MO ball : balls) if(ball.col < 0) enemypnts++;
+vector<pair<double, pair<int, double>>> walbot2::getHitLocs(MO me, vector<MO> balls, int timer_offset) {
 	vector<pair<double, pair<int, double>>> res;
 	for(const MO ball : balls) {
 		if(ball.col < 0 || ball.col >= c) continue;
@@ -78,11 +71,8 @@ vector<pair<double, pair<int, double>>> walbot::getHitLocs(MO me, vector<MO> bal
 			while(amtMove < ppp - 1 && nearLoc + dis_bw_paddles < ball.col) {
 				nearLoc += dis_bw_paddles;
 				amtMove++;
+				pnts *= pntdiv;
 			}
-			if(amtMove == ppp - 1) pnts = 0.75;
-			else if(amtMove != 0) pnts = 0.25;
-			if(amtMove == 0 && enemypnts >= 40) pnts = 2;
-			else if(amtMove == 0 && enemypnts >= 45) pnts = 5 + 10 * (enemypnts - 45);
 		}
 		double t = (double)abs(ball.col - nearLoc) / abs(ball.col_vel);
 		t = (double)((int)(t * 1000) - ((int)(t * 1000) % timer_offset)) / 1000;
@@ -96,7 +86,7 @@ vector<pair<double, pair<int, double>>> walbot::getHitLocs(MO me, vector<MO> bal
 	return res;
 }
 
-int walbot::getTargetRow(MO me, vector<pair<double, pair<int, double>>> v) {
+int walbot2::getTargetRow(MO me, vector<pair<double, pair<int, double>>> v) {
 	int bc = min(balls_considered, (int)v.size());
 	pair<double, int> dp[bc + 1][r - ps + 1];
 	for (int i = 0; i < bc + 1; i++) for (int j = 0; j < r - ps + 1; j++) dp[i][j] = make_pair(-1e6, 0);
@@ -128,11 +118,10 @@ int walbot::getTargetRow(MO me, vector<pair<double, pair<int, double>>> v) {
 	return targetRow;
 }
 
-pair<int,int> walbot::move(MO me, MO opponent, vector<MO> balls, int timer_offset)
+pair<int,int> walbot2::move(MO me, MO opponent, vector<MO> balls, int timer_offset)
 {
 	if(!amleft) {
 		me.col = strip_width - 1 - me.col;
-		opponent.col = strip_width - 1 - opponent.col;
 		for(MO& mo : balls) {
 			mo.col = c - 1 - mo.col;
 			mo.col_vel = -mo.col_vel;
@@ -140,52 +129,23 @@ pair<int,int> walbot::move(MO me, MO opponent, vector<MO> balls, int timer_offse
 	}
 	vector<pair<double, pair<int, double>>> v = getHitLocs(me, balls, timer_offset);
 	int targetRow = getTargetRow(me, v);
-	int r_vel = max(-100, min(100, (targetRow - me.row) * 1000 / timer_offset));
-	int c_vel;
 
-	for (MO& o : balls) o.row += o.row_vel * timer_offset / 1000;
-
-	if (about_to_hit(me, balls, timer_offset)) {
-		int disToOpponent = 2 * strip_width - me.col + opponent.col;
-		double bestV = -1;
-		for(int cv = -25; cv <= 25; cv++) for(int rv = -25; rv <= 25; rv++) {
-			vector<int> v;
-			for(const MO ball : balls) if(ball.col >= me.col && ball.col < c) {
-				int newR;
-				if(ball.col_vel < 0) {
-					for(int i = 0; i < 3; i++)
-						if(ball.col > me.col + i * dis_bw_paddles && (ball.col - me.col) < (cv - ball.col_vel) * timer_offset / 1000 && paddleHits(me.row + rv, ball.row)) {
-							int newCV = -ball.col_vel + cv;
-							int newRV = ball.row_vel + 0.25 * rv;
-							newR = disToOpponent * newRV / newCV + ball.row;
-							if(newCV < 40) newR = opponent.row;
-						}
-				} else if(ball.col < me.col + disToOpponent + (ppp - 1) * dis_bw_paddles) {
-					int nearestOpp = me.col + disToOpponent + (ppp - 1) * dis_bw_paddles;
-					while(ball.col < nearestOpp - dis_bw_paddles)
-						nearestOpp -= dis_bw_paddles;
-					newR = (nearestOpp - ball.col) * ball.row_vel / ball.col_vel + ball.row;
-					if(ball.col_vel < 40) newR = opponent.row;
-				}
-				newR = ((newR % (2 * r)) + 2 * r) % (2 * r);
-				if(newR >= r) newR = 2 * r - newR;
-				v.PB(max(0, newR - opponent.row + ps - 1) + max(0, opponent.row - newR));
-			}
-			double mean = 0;
-			for(const int val : v) mean += val;
-			mean /= ((int)v.size());
-			double var = 0;
-			for(const int val : v) var += (val - mean) * (val - mean);
-			if(var > bestV) {
-				bestV = var;
-				r_vel = rv;
-				c_vel = cv;
-			}
-		}
-	} else {
-		if(me.col > strip_width * 3 / 5) c_vel = -25;
-		else if(me.col < strip_width * 2 / 5) c_vel = 25;
-	}
+	int r_mag = 0;
+	if(targetRow == me.row) r_mag = 0;
+	else if(abs(targetRow - me.row) < 1) r_mag = 10;
+	else if(abs(targetRow - me.row) < 3) r_mag = 50;
+	else r_mag = 100;
+	int r_vel = 0;
+	if(targetRow > me.row) r_vel = r_mag;
+	else r_vel = -r_mag;
+	me.row += r_vel * timer_offset / 1000;
+	for (MO& o : balls) o.col += o.col_vel;
+	
+	int c_vel = 0;
+	if (should_smash(me, balls, timer_offset)) {
+		c_vel = 100;
+		r_vel = (rand() % 2) * 200 - 100;
+	} else if(me.col > 4) c_vel = -25;
 	
 	pair<int, int> res = MP(r_vel, c_vel);
 	if(!amleft) res.S *= -1;
