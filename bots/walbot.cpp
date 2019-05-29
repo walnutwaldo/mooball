@@ -108,12 +108,10 @@ int walbot::getTargetRow(MO me, vector<pair<double, pair<int, double>>> v) {
 			res = dp[curr][i];
 			if(res.F > 0) targetRow = i;
 		}
-		cout << res.F << " ";
 		while(curr > 1) {
 			if(dp[curr - 1][res.S].F > 0) targetRow = res.S;
 			res = dp[--curr][res.S];
 		}
-		cout << targetRow << endl;
 	}
 	return targetRow;
 }
@@ -143,7 +141,7 @@ pair<int,int> walbot::move(MO me, MO opponent, vector<MO> balls, int timer_offse
 	if (should_smash(me, balls)) {
 		c_vel = 100;
 		r_vel = (rand() % 2) * 200 - 100;
-	} else if(me.col > 4) c_vel = -100;
+	} else if(me.col > 4) c_vel = -25;
 	
 	pair<int, int> res = MP(r_vel, c_vel);
 	if(!amleft) res.S *= -1;
