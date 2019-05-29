@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sys/time.h>
-#include "freeglut.h"
+#include <GL/glut.h> 
+#include <GL/freeglut.h>
 #include "graphics.h"
 
 static int window_id, window_xsize, window_ysize, zoom = 3;
@@ -120,8 +121,8 @@ int init_graphics(int argc, char **argv,
   my_mousehandler = mousehandler;
   
   glutInit(&argc, argv);
-  glEnable(GL_DEPTH_TEST);
-  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+  //glEnable(GL_DEPTH_TEST);
+  //glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
   glutInitWindowPosition(20,400);
   glutInitWindowSize(window_xsize*zoom, window_ysize*zoom);
   window_id = glutCreateWindow("MoosBall");
