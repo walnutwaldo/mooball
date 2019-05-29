@@ -16,7 +16,7 @@ struct walbot : public Bot
 	void init(int Nrows, int Ncols, int Npaddles_per_player, int paddle_size, bool am_i_left);
 
 	double paddleHits(int, int);
-	bool should_smash(MO, vector<MO>);
+	bool should_smash(MO, vector<MO>, int);
 
 	vector<pair<double, pair<int, double>>> getHitLocs(MO, vector<MO>, int);
 	int getTargetRow(MO, vector<pair<double, pair<int, double>>>);
