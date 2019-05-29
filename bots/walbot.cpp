@@ -16,7 +16,6 @@ const int balls_considered = 100;
 const double pntdiv = 2000;
 const double reversepnts = -0.001;
 const int criticalInPlay = 30;
-const int smash_dis = 5;
 
 void walbot::init(int Nrows, int Ncols, int Npaddles_per_player, int paddle_size, bool am_i_left)
 {
@@ -37,16 +36,20 @@ double walbot::paddleHits(int paddlePos, int ballPos) {
 	return base;
 }
 
-bool walbot::should_smash(MO me, vector<MO> balls) {
+bool walbot::should_smash(MO me, vector<MO> balls, int timer_offset) {
 	int closest = 100;
 	int inPlay = 0;
+	int cnt1 = 0, cnt2 = 0;
 	for(const MO o : balls) {
 		if(o.col >= 0 && o.col < c) inPlay++;
-		if((o.col > me.col && o.col_vel < 0) && paddleHits(me.row, o.row)){
-			closest = min(closest, abs(o.col - me.col));
-		}
+		if((o.col > me.col + (ppp - 1) * dis_bw_paddles && o.col_vel < 0) && paddleHits(me.row, o.row)) 
+			if(o.col - me.col + (ppp - 1) * dis_bw_paddles < (100 - o.col_vel) * timer_offset / 1000)
+				cnt1++;
+		if((o.col > me.col && o.col_vel < 0) && paddleHits(me.row, o.row))
+			if(o.col - me.col < (100 - o.col_vel) * timer_offset / 1000)
+				cnt2++;
 	}
-	return inPlay >= criticalInPlay && closest < smash_dis;
+	return inPlay >= criticalInPlay && (cnt1 > 1.25 * cnt2);
 }
 
 vector<pair<double, pair<int, double>>> walbot::getHitLocs(MO me, vector<MO> balls, int timer_offset) {
@@ -136,9 +139,11 @@ pair<int,int> walbot::move(MO me, MO opponent, vector<MO> balls, int timer_offse
 	int r_vel = 0;
 	if(targetRow > me.row) r_vel = r_mag;
 	else r_vel = -r_mag;
+	me.row += r_vel * timer_offset / 1000;
+	for (MO& o : balls) o.col += o.col_vel;
 	
 	int c_vel = 0;
-	if (should_smash(me, balls)) {
+	if (should_smash(me, balls, timer_offset)) {
 		c_vel = 100;
 		r_vel = (rand() % 2) * 200 - 100;
 	} else if(me.col > 4) c_vel = -25;
