@@ -12,10 +12,11 @@ struct walbot : public Bot
 	int strip_width, dis_bw_paddles;
 	bool amleft;
 
-
 	void init(int Nrows, int Ncols, int Npaddles_per_player, int paddle_size, bool am_i_left);
 
 	double paddleHits(int, int);
+
+	bool about_to_hit(MO, vector<MO>, int);
 	bool should_smash(MO, vector<MO>, int);
 
 	vector<pair<double, pair<int, double>>> getHitLocs(MO, vector<MO>, int);

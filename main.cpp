@@ -11,6 +11,7 @@
 #include "bots/goalie_bot.h"
 #include "bots/random_bot.h"
 #include "bots/walbot.h"
+#include "bots/walbot2.h"
 #include "bots/intercept_bot.h"
 
 int main(int argc, char *argv[])
